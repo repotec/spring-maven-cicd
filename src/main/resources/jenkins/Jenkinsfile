@@ -1,0 +1,28 @@
+pipeline {
+    agent any
+
+    tools {
+        maven "Maven"
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                // Get some code from a GitHub repository
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/repotec/spring-maven-cicd.git']])
+
+                // Run Maven on a Unix agent.
+                //sh "mvn -Dmaven.test.failure.ignore=true clean package"
+
+                // To run Maven on a Windows agent, use
+                bat "mvn -Dmaven.test.failure.ignore=true clean package"
+            }
+
+        }
+    }
+    post{
+        always{
+            junit(allowEmptyResults: true, testResults: "test-reports/*.xml")
+        }
+    }
+}

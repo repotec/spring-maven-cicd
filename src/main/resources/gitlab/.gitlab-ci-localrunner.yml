@@ -1,0 +1,75 @@
+#local runner with docker and dockerHub
+stages:
+    - unit-Jenkinsfile
+    - integration-Jenkinsfile
+    - maven-build
+    - image-build
+    - image-deploy
+
+unit-test-job:
+    stage: unit-Jenkinsfile
+    script: 
+        - "mvn clean Jenkinsfile -B"
+    artifacts:
+        paths:
+            - "target/test-reports"
+        when: always
+        expire_in: 1 h
+    tags:
+        - localshell
+        - localrunner
+
+integration-test-job:
+    stage: integration-Jenkinsfile
+    script: 
+        - "mvn clean verify -DskipUnitTests -B"
+    artifacts:
+        paths:
+            - "target/test-reports"
+        when: always
+        expire_in: 1 h
+    tags:
+        - localshell
+        - localrunner
+
+build-job:
+    stage: maven-build
+    script: "mvn package -DskipTests -B"
+    artifacts:
+        paths:
+            - target/*.jar
+    tags:
+        - localshell
+        - localrunner
+
+docker-job:
+    stage: image-build
+    script:
+        - docker build -t employee-api .
+    tags:
+        - localshell
+        - localrunner
+
+deploy-job:
+    stage: image-deploy
+    script:
+       - |
+          powershell -Command "
+          try {
+              docker stop employee-api -ErrorAction Stop
+              Write-Host 'Stopped existing container: employee-api'
+          } catch {
+              Write-Host 'Docker stop failed: $($_.Exception.Message)'
+          }
+          try {
+              docker rm employee-api -ErrorAction Stop
+              Write-Host 'Removed existing container: employee-api'
+          } catch {
+              Write-Host 'Docker rm failed: $($_.Exception.Message)'
+          }
+          docker run -d --name employee-api -p 9090:9090 employee-api
+          Write-Host 'Started new container: employee-api'
+          "
+    tags:
+        - localshell
+        - localrunner

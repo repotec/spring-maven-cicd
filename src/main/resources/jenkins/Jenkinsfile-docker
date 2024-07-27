@@ -1,0 +1,34 @@
+pipeline {
+    agent any
+    tools {
+        maven "Maven"
+    }
+    stages {
+        stage('Build-maven') {
+            steps {
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/repotec/spring-maven-cicd.git']])
+                bat "mvn -Dmaven.test.failure.ignore=true clean package"
+            }
+        }
+        stage('Build-docker') {
+            steps {
+                bat "docker build -t repotecing/employee-api ."
+            }
+        }
+        stage('Push-docker') {
+            steps {
+                script{
+                    withCredentials([string(credentialsId: 'dockerhub_credentials', variable: 'dockerhub_secret')]) {
+                        bat "docker login -u repotecing -p ${dockerhub_secret}"
+                    }
+                    bat "docker push repotecing/employee-api:latest"
+                }
+            }
+        }
+    }
+    post{
+        always{
+            junit(allowEmptyResults: true, testResults: "test-reports/*.xml")
+        }
+    }
+}
